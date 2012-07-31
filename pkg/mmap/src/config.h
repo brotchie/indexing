@@ -62,7 +62,7 @@
 #define PACKAGE_NAME "mmap"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "mmap 0.6-7"
+#define PACKAGE_STRING "mmap 0.6-8"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "mmap"
@@ -71,7 +71,11 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.6-7"
+#define PACKAGE_VERSION "0.6-8"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
+
+/* Define to 1 if you have the <endian.h> header file and wish to compile with
+   endianness support. */
+#define WITH_ENDIANNESS 1

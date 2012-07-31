@@ -107,7 +107,7 @@ mmap <- function(file, mode=int32(),
                  extractFUN=NULL, replaceFUN=NULL,
                  prot=mmapFlags("PROT_READ","PROT_WRITE"),
                  flags=mmapFlags("MAP_SHARED"),len,off=0L,
-                 bigendian=FALSE,
+                 endianness=NULL,
                  ...) {
     if(missing(file))
       stop("'file' must be specified")
@@ -132,7 +132,12 @@ mmap <- function(file, mode=int32(),
     mmap_obj$filedesc <- structure(mmap_obj$filedesc, .Names=file)
     mmap_obj$extractFUN <- extractFUN
     mmap_obj$replaceFUN <- replaceFUN
-    mmap_obj$bigendian <- bigendian
+
+    if (!is.null(endianness) && !mmap_obj$supports.endianness) {
+        stop("An endianness has been specified but the compiled mmap package doesn't have endianness support.")
+    } else {
+        mmap_obj$endianness <- endianness
+    }
     class(mmap_obj) <- "mmap"
     return(mmap_obj)
 }
