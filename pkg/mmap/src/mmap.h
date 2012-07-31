@@ -22,6 +22,7 @@
 #define MMAP_PAGESIZE(mmap_object)    INTEGER(findVar(install("pagesize"),mmap_object))[0]
 #define MMAP_DIM(mmap_object)         findVar(install("dim"),mmap_object)
 #define MMAP_SYNC(mmap_object)        INTEGER(VECTOR_ELT(mmap_object,4))[0]
+#define MMAP_BIGENDIAN(mmap_object)    INTEGER(findVar(install("bigendian"),mmap_object))[0]
 
 /*
 #define MMAP_DATA(mmap_object)        R_ExternalPtrAddr(VECTOR_ELT(mmap_object,0))

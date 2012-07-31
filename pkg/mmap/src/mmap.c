@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
+#include <endian.h>
 
 #include "mmap.h"
 
@@ -192,7 +192,8 @@ void mmap_finalizer (SEXP mmap_obj) {
 /* mmap_mmap AND mmap_finalizer {{{ */
 #ifdef WIN32
 SEXP mmap_mmap (SEXP _type, SEXP _fildesc, SEXP _prot,
-                SEXP _flags, SEXP _len, SEXP _off, SEXP _pageoff) {
+                SEXP _flags, SEXP _len, SEXP _off, SEXP _pageoff,
+                SEXP _bigendian) {
   char *data;
   struct stat st;
   SYSTEM_INFO sSysInfo;
@@ -369,6 +370,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
   int mode = MMAP_MODE(mmap_obj);
   int Cbytes = MMAP_CBYTES(mmap_obj);
   int isSigned = MMAP_SIGNED(mmap_obj);
+  int bigEndian = MMAP_BIGENDIAN(mmap_obj);
 
   /* types to hold memcpy of raw bytes to avoid punning */
   short sbuf;
@@ -496,7 +498,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
           memcpy(&sbuf, 
                  &(data[((long)index_p[i]-1)*sizeof(short)]),
                  sizeof(char)*sizeof(short));
-          int_dat[i] = (int)sbuf;
+          int_dat[i] = (int) (bigEndian ? be16toh(sbuf) : sbuf);
         }
         } else {
         for(i=0;  i < LEN; i++) {
@@ -510,7 +512,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
           memcpy(&sbuf,
                  &(data[((long)index_p[i]-1)*sizeof(short)]),
                  sizeof(char)*sizeof(short));
-          int_dat[i] = (int)(unsigned short)sbuf;
+          int_dat[i] = (int)(unsigned short)(bigEndian ? be16toh(sbuf) : sbuf);
         }  
         }
         break;
@@ -566,7 +568,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
           memcpy(&intbuf, 
                  &(data[((long)index_p[i]-1)*sizeof(int)]),
                  sizeof(char)*sizeof(int));
-          int_dat[i] = intbuf;
+          int_dat[i] = bigEndian ? be32toh(intbuf) : intbuf;
         }
         break;
       default:
@@ -586,7 +588,12 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
           memcpy(&floatbuf, 
                  &(data[((long)index_p[i]-1)*sizeof(float)]), 
                  sizeof(char)*sizeof(float));
-          real_dat[i] = (double)floatbuf;
+          if (bigEndian) {
+            unsigned int flipped = be32toh(*((unsigned int*)&floatbuf));
+            real_dat[i] = (double)(*(float *)&flipped);
+          } else {
+            real_dat[i] = (double)floatbuf;
+          }
         }
         break;
       case 8: /* 8 byte double or (double)int64 */
@@ -599,7 +606,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
             memcpy(&longbuf, 
                    &(data[((long)index_p[i]-1)*sizeof(long)]), 
                    sizeof(char)*sizeof(long));
-            real_dat[i] = (double)longbuf;
+            real_dat[i] = (double)(bigEndian ? be64toh(longbuf) : longbuf);
           }
         } else {
         for(i=0;  i < LEN; i++) {
@@ -609,7 +616,12 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
           memcpy(&realbuf, 
                  &(data[((long)index_p[i]-1)*sizeof(double)]), 
                  sizeof(char)*sizeof(double));
-          real_dat[i] = realbuf;
+         if (bigEndian) {
+            unsigned long flipped = be64toh(*((unsigned long*)&realbuf));
+            real_dat[i] = *(double *)&flipped;
+          } else {
+            real_dat[i] = (double)realbuf;
+          }
         }
         }
         break;
@@ -716,14 +728,14 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
               memcpy(&sbuf, 
                      &(data[((long)index_p[ii]-1) * Cbytes + offset]),
                      sizeof(char)*sizeof(short));
-              int_vec_dat[ii] = (int)sbuf;
+              int_vec_dat[ii] = (int) (bigEndian ? be16toh(sbuf) : sbuf);
             }
             } else {            /* 2 byte unsigned short */
             for(ii=0; ii<LEN; ii++) {
               memcpy(&sbuf, 
                      &(byte_buf[ii*Cbytes+offset]),
                      sizeof(char)*sizeof(short));
-              int_vec_dat[ii] = (int)(unsigned short)sbuf;
+              int_vec_dat[ii] = (int)(unsigned short)(bigEndian ? be16toh(sbuf) : sbuf);
             }
             }
             break;
@@ -735,7 +747,7 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
               memcpy(&intbuf, 
                      &(byte_buf[ii*Cbytes+offset]),
                      sizeof(char)*sizeof(int));
-              int_vec_dat[ii] = intbuf;
+              int_vec_dat[ii] = bigEndian ? be32toh(intbuf) : intbuf;
             }
             break;
           }
@@ -751,7 +763,13 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
               memcpy(&floatbuf, 
                      &(byte_buf[ii*Cbytes+offset]),
                      sizeof(char)*sizeof(float));
-              real_vec_dat[ii] = (double)floatbuf;
+              if (bigEndian) {
+                unsigned int flipped = be32toh(*((unsigned int*)&floatbuf));
+                real_vec_dat[ii] = (double)(*(float *)&flipped);
+              } else {
+                real_vec_dat[ii] = (double)floatbuf;
+              }
+              //real_vec_dat[ii] = (double)floatbuf;
             }
             break;
             case sizeof(double): /* 8 byte */
@@ -762,14 +780,22 @@ SEXP mmap_extract (SEXP index, SEXP field, SEXP dim, SEXP mmap_obj) {
                 memcpy(&longbuf, 
                        &(byte_buf[ii*Cbytes+offset]),
                        sizeof(char)*sizeof(long));
-                real_vec_dat[ii] = (double)longbuf;
+                //real_vec_dat[ii] = (double)longbuf;
+                real_vec_dat[ii] = (double)(bigEndian ? be64toh(longbuf) : longbuf);
               }
             } else {
             for(ii=0; ii<LEN; ii++) {
               memcpy(&realbuf, 
                      &(byte_buf[ii*Cbytes+offset]),
                      sizeof(char)*sizeof(double));
-              real_vec_dat[ii] = (double)realbuf;
+              //real_vec_dat[ii] = (double)realbuf;
+              if (bigEndian) {
+                unsigned long flipped = be64toh(*((unsigned long*)&realbuf));
+                real_vec_dat[ii] = *(double *)&flipped;
+              } else {
+                real_vec_dat[ii] = (double)realbuf;
+              }
+
             }
             }
           }

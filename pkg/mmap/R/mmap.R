@@ -101,11 +101,13 @@ mmapFlags <- function(...) {
   .Call("mmap_mkFlags", flags, PKG="mmap")
 }
 
+
 # S3 constructor
 mmap <- function(file, mode=int32(), 
                  extractFUN=NULL, replaceFUN=NULL,
                  prot=mmapFlags("PROT_READ","PROT_WRITE"),
                  flags=mmapFlags("MAP_SHARED"),len,off=0L,
+                 bigendian=FALSE,
                  ...) {
     if(missing(file))
       stop("'file' must be specified")
@@ -130,6 +132,7 @@ mmap <- function(file, mode=int32(),
     mmap_obj$filedesc <- structure(mmap_obj$filedesc, .Names=file)
     mmap_obj$extractFUN <- extractFUN
     mmap_obj$replaceFUN <- replaceFUN
+    mmap_obj$bigendian <- bigendian
     class(mmap_obj) <- "mmap"
     return(mmap_obj)
 }
